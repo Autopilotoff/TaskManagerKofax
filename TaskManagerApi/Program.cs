@@ -26,6 +26,7 @@ namespace TaskManagerApi
 
             app.UseAuthorization();
 
+            app.UseWebSockets();
 
             app.MapControllers();
 

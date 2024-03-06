@@ -27,3 +27,11 @@ setTimeout((jsonData) => {
 }, 4000, jsonData);
 
 
+let socket = new WebSocket("ws://localhost:5159/TaskManager/SendCurrentProcessActions");
+
+socket.onmessage = function (event) {
+	let message = event.data;
+	let messageElem = document.createElement('div');
+	messageElem.textContent = message;
+	document.getElementById('table-container').prepend(messageElem);
+}
