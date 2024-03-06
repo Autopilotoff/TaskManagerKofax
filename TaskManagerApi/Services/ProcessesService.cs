@@ -8,7 +8,7 @@ namespace TaskManagerApi.Services
         public ProcessModel[] GetCurrentProcesses()
         {
             return Process.GetProcesses()
-                .Select(x => new ProcessModel { Id = x.Id, ProcessName = x.ProcessName, NonpagedSystemMemorySize64 = x.NonpagedSystemMemorySize64 })
+                .Select(x => new ProcessModel(x))
                 .ToArray();
         }
     }
