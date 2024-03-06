@@ -19,7 +19,9 @@ namespace TaskManagerApi.Tests
         public async Task GetChangesAsync_Should_Return_Empty_If_No_Processes()
         {
             var result = await _processesStorage.GetChangesAsync(new List<ProcessModel>());
-            Assert.That(result, Is.Empty);
+            Assert.That(result.AddedProcesses, Is.Empty);
+            Assert.That(result.UpdatedProcesses, Is.Empty);
+            Assert.That(result.DeletedProcesses, Is.Empty);
         }
 
         [Test]
@@ -36,8 +38,9 @@ namespace TaskManagerApi.Tests
             var result = await _processesStorage.GetChangesAsync(processes);
 
             // Assert
-            Assert.That(result.Count(), Is.EqualTo(2));
-            Assert.That(result.All(p => p.Action == ProcessActionModel.ActionEnum.Add), Is.True);
+            Assert.That(result.AddedProcesses.Count(), Is.EqualTo(2));
+            Assert.That(result.UpdatedProcesses, Is.Empty);
+            Assert.That(result.DeletedProcesses, Is.Empty);
         }
 
         [Test]
@@ -58,8 +61,9 @@ namespace TaskManagerApi.Tests
             var result = await _processesStorage.GetChangesAsync(existingProcesses);
 
             // Assert
-            Assert.That(result.Count(), Is.EqualTo(1));
-            Assert.That(result.All(p => p.Action == ProcessActionModel.ActionEnum.Delete), Is.True);
+            Assert.That(result.DeletedProcesses.Count(), Is.EqualTo(1));
+            Assert.That(result.UpdatedProcesses, Is.Empty);
+            Assert.That(result.AddedProcesses, Is.Empty);
         }
 
         [Test]
@@ -84,8 +88,9 @@ namespace TaskManagerApi.Tests
             var result = await _processesStorage.GetChangesAsync(updatedProcesses);
 
             // Assert
-            Assert.That(result.Count(), Is.EqualTo(1));
-            Assert.That(result.All(p => p.Action == ProcessActionModel.ActionEnum.Update), Is.True);
+            Assert.That(result.UpdatedProcesses.Count(), Is.EqualTo(1));
+            Assert.That(result.DeletedProcesses, Is.Empty);
+            Assert.That(result.AddedProcesses, Is.Empty);
         }
 
         [Test]
@@ -106,7 +111,9 @@ namespace TaskManagerApi.Tests
             var result = await _processesStorage.GetChangesAsync(existingProcesses);
 
             // Assert
-            Assert.That(result, Is.Empty);
+            Assert.That(result.AddedProcesses, Is.Empty);
+            Assert.That(result.UpdatedProcesses, Is.Empty);
+            Assert.That(result.DeletedProcesses, Is.Empty);
         }
     }
 }

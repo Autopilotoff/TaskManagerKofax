@@ -1,26 +1,17 @@
 ﻿using System.Diagnostics;
+using System.Text.Json.Serialization;
 
 namespace TaskManagerApi.Models
 {
     public class ProcessActionModel
     {
-        public ProcessActionModel(ProcessModel process, ActionEnum actionEnum)
-        {
-            Id = process.Id;
-            ProcessName = process.ProcessName;
-            NonpagedSystemMemorySize64 = process.NonpagedSystemMemorySize64;
-            Action = actionEnum;
-        }
+        [JsonPropertyName("added")]
+        public IEnumerable<ProcessModel> AddedProcesses { get; set; }
 
-        public int Id { get; set; }
-        public string ProcessName { get; set; }
-        public long NonpagedSystemMemorySize64 { get; set; }
+        [JsonPropertyName("updated")]
+        public IEnumerable<ProcessModel> UpdatedProcesses { get; set; }
 
-        public ActionEnum Action { get; set; }
-
-        public enum ActionEnum
-        {
-            Add, Update, Delete
-        }
+        [JsonPropertyName("deleted")]
+        public IEnumerable<int> DeletedProcesses { get; set; }
     }
 }

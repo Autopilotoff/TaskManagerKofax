@@ -11,19 +11,22 @@ namespace TaskManagerApi.Services
         private readonly ProcessModelComparer _processModeComparer = new ProcessModelComparer();
 
 
-        public async Task<IEnumerable<ProcessActionModel>> GetChangesAsync(IEnumerable<ProcessModel> processes)
+        public async Task<ProcessActionModel> GetChangesAsync(IEnumerable<ProcessModel> processes)
         {
             var taskAdd = AddAsync(processes);
             var taskDelete = DeleteAsync(processes);
             var taskUpdate = UpdateAsync(processes);
             await Task.WhenAll(taskAdd, taskDelete, taskUpdate);
 
-            return taskAdd.Result
-                .Union(taskDelete.Result)
-                .Union(taskUpdate.Result);
+            return new ProcessActionModel
+            {
+                AddedProcesses = taskAdd.Result,
+                DeletedProcesses = taskDelete.Result,
+                UpdatedProcesses = taskUpdate.Result
+            };
         }
 
-        private async Task<IEnumerable<ProcessActionModel>> AddAsync(IEnumerable<ProcessModel> processes)
+        private async Task<IEnumerable<ProcessModel>> AddAsync(IEnumerable<ProcessModel> processes)
         {
             var forAdd = processes.ExceptBy(_collection.Values, x => x, _idProcessModeComparer).ToList();
 
@@ -32,10 +35,10 @@ namespace TaskManagerApi.Services
                 _collection.TryAdd(item.Id, item);
             }
 
-            return forAdd.Select(x => new ProcessActionModel(x, ProcessActionModel.ActionEnum.Add));
+            return forAdd;
         }
 
-        private async Task<IEnumerable<ProcessActionModel>> DeleteAsync(IEnumerable<ProcessModel> processes)
+        private async Task<IEnumerable<int>> DeleteAsync(IEnumerable<ProcessModel> processes)
         {
             var forDelete = _collection.ExceptBy(processes, x => x.Value, _idProcessModeComparer).ToList();
 
@@ -44,10 +47,10 @@ namespace TaskManagerApi.Services
                 _collection.Remove(item.Key, out var result);
             }
 
-            return forDelete.Select(x => new ProcessActionModel(x.Value, ProcessActionModel.ActionEnum.Delete));
+            return forDelete.Select(x => x.Key);
         }
 
-        private async Task<IEnumerable<ProcessActionModel>> UpdateAsync(IEnumerable<ProcessModel> processes)
+        private async Task<IEnumerable<ProcessModel>> UpdateAsync(IEnumerable<ProcessModel> processes)
         {
             var forUpdate = processes
                 .IntersectBy(_collection.Values, x => x, _idProcessModeComparer)
@@ -58,7 +61,7 @@ namespace TaskManagerApi.Services
                 _collection[item.Id] = item;
             }
 
-            return forUpdate.Select(x => new ProcessActionModel(x, ProcessActionModel.ActionEnum.Update));
+            return forUpdate;
         }
 
         private class IdProcessModelComparer : IEqualityComparer<ProcessModel>
@@ -88,9 +91,10 @@ namespace TaskManagerApi.Services
                     return true;
                 }
 
-                return 
+                return
                     x?.ProcessName == y?.ProcessName
-                    && x?.NonpagedSystemMemorySize64 == y?.NonpagedSystemMemorySize64;
+                    && x?.NonpagedSystemMemorySize64 == y?.NonpagedSystemMemorySize64
+                    && x?.PagedMemorySize64 == y?.PagedMemorySize64;
             }
 
             public int GetHashCode([DisallowNull] ProcessModel obj)
@@ -100,6 +104,7 @@ namespace TaskManagerApi.Services
                     int hash = 17;
                     hash = hash * 23 + (obj.ProcessName != null ? obj.ProcessName.GetHashCode() : 0);
                     hash = hash * 23 + obj.NonpagedSystemMemorySize64.GetHashCode();
+                    hash = hash * 23 + obj.PagedMemorySize64.GetHashCode();
                     return hash;
                 }
             }

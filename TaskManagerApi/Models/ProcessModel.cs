@@ -11,6 +11,7 @@ namespace TaskManagerApi.Models
             Id = process.Id;
             ProcessName = process.ProcessName;
             NonpagedSystemMemorySize64 = process.NonpagedSystemMemorySize64;
+            PagedMemorySize64 = process.PagedMemorySize64;
         }
 
         public int Id { get; set; }
@@ -18,5 +19,7 @@ namespace TaskManagerApi.Models
         public string ProcessName { get; set; }
 
         public long NonpagedSystemMemorySize64 { get; set; }
+
+        public long PagedMemorySize64 { get; set; }
     }
 }

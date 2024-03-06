@@ -26,18 +26,18 @@ namespace TaskManagerApi.Controllers
         }
 
         [HttpGet(Name = "GetCurrentProcessActions")]
-        public async Task<IEnumerable<ProcessActionModel>> GetCurrentProcessActionsAsync()
+        public async Task<ProcessActionModel> GetCurrentProcessActionsAsync()
         {
             var processesService = new ProcessesService();
             var processStorage = new ProcessesStorage();
             var ienumerable = await processStorage.GetChangesAsync(processesService.GetCurrentProcesses());
-            _logger.LogInformation(ienumerable.Count().ToString());
+            _logger.LogInformation(ienumerable.AddedProcesses.Count().ToString());
 
             var t = 3;
             while (t > 0)
             {
                 var testienumerable = await processStorage.GetChangesAsync(processesService.GetCurrentProcesses());
-                _logger.LogInformation(testienumerable.Count().ToString());
+                _logger.LogInformation(testienumerable.AddedProcesses.Count().ToString());
                 _logger.LogInformation(JsonSerializer.Serialize(testienumerable));
 
                 t--;
@@ -66,21 +66,29 @@ namespace TaskManagerApi.Controllers
             var processesService = new ProcessesService();
             var processStorage = new ProcessesStorage();
 
-            while (true)
+            var buffer = new byte[1024 * 4];
+            var timeOut = 5000;
+            try
             {
-                if (webSocket.State == WebSocketState.Open)
+                var receiveResult = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), new CancellationTokenSource(timeOut).Token);
+
+                while (!receiveResult.CloseStatus.HasValue)
                 {
                     var data = await processStorage.GetChangesAsync(processesService.GetCurrentProcesses());
                     var message = JsonSerializer.Serialize(data);
-                    var bytes  = Encoding.UTF8.GetBytes(message);
+                    var bytes = Encoding.UTF8.GetBytes(message);
                     var arraySegment = new ArraySegment<byte>(bytes, 0, bytes.Length);
+
                     await webSocket.SendAsync(arraySegment, WebSocketMessageType.Text, true, CancellationToken.None);
+
+                    receiveResult = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), new CancellationTokenSource(timeOut).Token);
                 }
-                else if (webSocket.State == WebSocketState.Closed || webSocket.State == WebSocketState.Aborted)
-                {
-                    break;
-                }
-                Thread.Sleep(2000);
+
+                await webSocket.CloseAsync(receiveResult.CloseStatus.Value, receiveResult.CloseStatusDescription, CancellationToken.None);
+            }
+            catch (OperationCanceledException e)
+            {
+                _logger.LogError(exception: e, e.Message);
             }
         }
     }

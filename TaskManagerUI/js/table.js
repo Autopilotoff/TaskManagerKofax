@@ -20,6 +20,9 @@ function createTable(jsonData) {
 }
 
 function addTableRows(tableContainer, jsonData) {
+    if (!jsonData || !jsonData.length) {
+        return;
+    }
     const columns = Object.keys(jsonData[0]);
     const tbody = tableContainer.querySelector('tbody');
 
@@ -42,7 +45,7 @@ function deleteTableRows(jsonData) {
 
 function createTableRow(columns, rowData) {
     const row = document.createElement('tr');
-    row.setAttribute('id', rowData['id']);
+    row.setAttribute('id', rowData[Object.keys(rowData)[0]]);
 
     columns.forEach(column => {
         const td = document.createElement('td');
@@ -55,7 +58,7 @@ function createTableRow(columns, rowData) {
 }
 
 function updateTableRow(rowData) {
-    const row = document.getElementById(rowData['id']);
+    const row = document.getElementById(rowData[Object.keys(rowData)[0]]);
     if (row && row.childNodes) {
         row.childNodes.forEach(td => {
             td.textContent = rowData[td.getAttribute("name")];
