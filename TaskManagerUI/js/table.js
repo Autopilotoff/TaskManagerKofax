@@ -1,13 +1,11 @@
 
-function createTable(jsonData) {
+function createTable(tableHeader) {
     const table = document.createElement('table');
     const thead = document.createElement('thead');
     const tbody = document.createElement('tbody');
 
-    const columns = Object.keys(jsonData[0]);
-
     const headerRow = document.createElement('tr');
-    columns.forEach(column => {
+    tableHeader.forEach(column => {
         const th = document.createElement('th');
         th.textContent = column;
         headerRow.appendChild(th);
