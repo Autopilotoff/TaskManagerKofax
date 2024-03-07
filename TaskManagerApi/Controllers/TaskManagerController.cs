@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using System.Diagnostics;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using TaskManagerApi.Models;
 using TaskManagerApi.Services;
+using TaskManagerApi.Services.Notifications;
 
 namespace TaskManagerApi.Controllers
 {
@@ -45,6 +47,21 @@ namespace TaskManagerApi.Controllers
             }
 
             return ienumerable;
+        }
+
+        [HttpGet(Name = "GetNotifications")]
+        public async Task GetNotificationsAsync()
+        {
+            if (HttpContext.WebSockets.IsWebSocketRequest)
+            {
+                using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
+                var notificationService = new NotificationWebSocketService(webSocket, _logger);
+                await notificationService.ExecuteSendingAsync();
+            }
+            else
+            {
+                HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+            }
         }
 
         [HttpGet(Name = "SendCurrentProcessActions")]
