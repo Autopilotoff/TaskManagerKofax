@@ -2,7 +2,7 @@
 {
     public abstract class Counter
     {
-        internal const int CountMillisecondsTimeout = 1000;
+        internal const int CountMillisecondsTimeout = 500;
 
         protected Func<object, bool> ConditionPredicate { get; init; }
 
@@ -10,11 +10,10 @@
 
         private bool IsCountRunning { get; set; }
 
-        public void StartCount(Action<string> notify)
+        public async Task StartCountAsync(Action<string> notify)
         {
             IsCountRunning = true;
             GetCounterValue();
-
             while (IsCountRunning)
             {
                 if (ConditionPredicate(GetCounterValue()))
@@ -26,7 +25,7 @@
             }
         }
 
-        public void StopCount()
+        public async Task StopCountAsync()
         {
             IsCountRunning = false;
         }

@@ -4,24 +4,46 @@ using System.Text;
 
 namespace TaskManagerApi.Services
 {
-    public class ProcessesWebSocketService : WebSocketService
+    public class ProcessesWebSocketService
     {
-        private readonly ProcessesService _processesService;
+        private const int CancellationTimeOut = 5000;
 
+        private readonly ProcessesService _processesService;
         private readonly ProcessesStorage _processStorage;
 
-        public ProcessesWebSocketService(WebSocket webSocket, ILogger logger) : base(webSocket, logger)
+        private readonly WebSocket _webSocket;
+        private readonly ILogger _logger;
+
+        public ProcessesWebSocketService(WebSocket webSocket, ILogger logger)
         {
             _processesService = new ProcessesService();
             _processStorage = new ProcessesStorage();
+            _logger = logger;
+            _webSocket = webSocket;
         }
 
-        public override async Task ExecuteSendingAsync()
+        public async Task ExecuteSendingAsync()
         {
-            await ExecuteAsync();
+            var buffer = new byte[1024 * 4];
+            try
+            {
+                var receiveResult = await _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), new CancellationTokenSource(CancellationTimeOut).Token);
+
+                while (!receiveResult.CloseStatus.HasValue)
+                {
+                    await NotifyAsync();
+                    receiveResult = await _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), new CancellationTokenSource(CancellationTimeOut).Token);
+                }
+
+                await _webSocket.CloseAsync(receiveResult.CloseStatus.Value, receiveResult.CloseStatusDescription, CancellationToken.None);
+            }
+            catch (OperationCanceledException e)
+            {
+                _logger.LogError(exception: e, e.Message);
+            }
         }
 
-        protected override async Task NotifyAsync()
+        private async Task NotifyAsync()
         {
             var data = await _processStorage.GetChangesAsync(_processesService.GetCurrentProcesses());
             var message = JsonSerializer.Serialize(data);
