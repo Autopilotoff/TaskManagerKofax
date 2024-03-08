@@ -4,6 +4,6 @@
 
 /TaskManagerApi/obj
 /TaskManagerApi/bin/Debug/net6.0
-/TaskManagerApi/.vs/TaskManagerApi
+/TaskManagerApi/.vs
 /TaskManagerApi.Tests/obj
 /TaskManagerApi.Tests/bin/Debug/net6.0
