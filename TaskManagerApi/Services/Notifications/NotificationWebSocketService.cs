@@ -1,31 +1,42 @@
-﻿using System.Collections.Concurrent;
+﻿using Microsoft.Extensions.Options;
+using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
-using TaskManagerApi.Services.Notifications.Counters;
+using TaskManagerApi.SettingsModels;
 
 namespace TaskManagerApi.Services.Notifications
 {
-    public class NotificationWebSocketService
+    public class NotificationWebSocketService : INotificationWebSocketService
     {
-        private const int CancellationTimeOut = 30000;
-
+        private readonly ILogger<INotificationWebSocketService> _logger;
         private readonly ConcurrentQueue<string> _messagesQueue;
         private readonly List<Counter> _counters;
 
-        private readonly WebSocket _webSocket;
-        private readonly ILogger _logger;
+        private WebSocket _webSocket;
 
-        public NotificationWebSocketService(WebSocket webSocket, ILogger logger)
+        private int CancellationMillisecondsTimeOut { get; } = 30000;
+
+        private int CheckMillisecondsTimeout { get; } = 500;
+
+        public NotificationWebSocketService(
+            ILogger<INotificationWebSocketService> logger,
+            IOptions<PerformanceCounterSettings> options,
+            IOptions<NotificationSettings> notificationSettings
+            )
         {
-            _counters = new List<Counter> { new CpuCounter(), new MemoryCounter() };
-            _messagesQueue = new ConcurrentQueue<string>();
             _logger = logger;
-            _webSocket = webSocket;
+            _counters = CreateCounters(options);
+            _messagesQueue = new ConcurrentQueue<string>();
+            CancellationMillisecondsTimeOut = notificationSettings?.Value?.CancellationMillisecondsTimeOut ?? CancellationMillisecondsTimeOut;
+            CheckMillisecondsTimeout = notificationSettings?.Value?.CheckMillisecondsTimeout ?? CheckMillisecondsTimeout;
         }
 
-        public async Task ExecuteSendingAsync()
+        public async Task ExecuteSendingAsync(WebSocket webSocket)
         {
+            _webSocket = webSocket;
+
             await StartWatchingAsync();
+            _logger.LogInformation("Watching started...");
             try
             {
                 await EnableSendingAsync();
@@ -33,6 +44,7 @@ namespace TaskManagerApi.Services.Notifications
             finally
             {
                 await StopWatchingAsync();
+                _logger.LogInformation("...Watching stoped.");
             }
         }
 
@@ -40,13 +52,13 @@ namespace TaskManagerApi.Services.Notifications
         {
             var buffer = new byte[1024 * 4];
 
-            var cancellationTokenSource = new CancellationTokenSource(CancellationTimeOut);
+            var cancellationTokenSource = new CancellationTokenSource(CancellationMillisecondsTimeOut);
             var receiveTask = _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationTokenSource.Token);
             while (receiveTask.IsCompleted == false || !receiveTask.Result.CloseStatus.HasValue)
             {
                 if (receiveTask.IsCompleted)
                 {
-                    cancellationTokenSource = new CancellationTokenSource(CancellationTimeOut);
+                    cancellationTokenSource = new CancellationTokenSource(CancellationMillisecondsTimeOut);
                     receiveTask = _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationTokenSource.Token);
                 }
 
@@ -56,7 +68,7 @@ namespace TaskManagerApi.Services.Notifications
                 }
                 else
                 {
-                    Thread.Sleep(Counter.CountMillisecondsTimeout);
+                    Thread.Sleep(CheckMillisecondsTimeout);
                 }
             }
 
@@ -70,7 +82,7 @@ namespace TaskManagerApi.Services.Notifications
             await _webSocket.SendAsync(arraySegment, WebSocketMessageType.Text, true, CancellationToken.None);
         }
 
-        public async Task StartWatchingAsync()
+        private async Task StartWatchingAsync()
         {
             foreach (var couter in _counters)
             {
@@ -78,17 +90,34 @@ namespace TaskManagerApi.Services.Notifications
             }
         }
 
-        public async Task StopWatchingAsync()
+        private async Task StopWatchingAsync()
         {
-            foreach (var couter in _counters)
-            {
-                couter.StopCountAsync();
-            }
+            _counters.ForEach(counter => counter.StopCountAsync());
         }
 
         private void Notify(string message)
         {
             _messagesQueue.Enqueue(message);
         }
+
+        private List<Counter> CreateCounters(IOptions<PerformanceCounterSettings> options)
+        {
+            return options?.Value?.CounterOptions?
+                .Select(x => CreateCounter(x))
+                .ToList()
+                 ?? throw new ArgumentNullException(nameof(options));
+        }
+
+        private Counter CreateCounter(PerformanceCounterOption option)
+        {
+            return new Counter(
+                option.Limit,
+                option.Category,
+                option.Name,
+                option.InstanceName,
+                option.CountMillisecondsTimeout,
+                option.PauseAfterNotifyMilliseconds);
+        }
+
     }
 }

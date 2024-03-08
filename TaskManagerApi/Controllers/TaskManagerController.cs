@@ -1,9 +1,4 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using System.Diagnostics;
-using System.Net.WebSockets;
-using System.Text;
-using System.Text.Json;
-using TaskManagerApi.Models;
 using TaskManagerApi.Services;
 using TaskManagerApi.Services.Notifications;
 
@@ -14,10 +9,18 @@ namespace TaskManagerApi.Controllers
     public class TaskManagerController : ControllerBase
     {
         private readonly ILogger<TaskManagerController> _logger;
+        private readonly INotificationWebSocketService _notificationWebSocketService;
+        private readonly IProcessesWebSocketService _processesWebSocketService;
 
-        public TaskManagerController(ILogger<TaskManagerController> logger)
+        public TaskManagerController(
+            ILogger<TaskManagerController> logger,
+            INotificationWebSocketService notificationWebSocketService,
+            IProcessesWebSocketService processesWebSocketService)
         {
             _logger = logger;
+            _notificationWebSocketService = notificationWebSocketService;
+            _processesWebSocketService = processesWebSocketService;
+
         }
 
         // [HttpGet(Name = "GetCurrentProcesses")]
@@ -55,8 +58,7 @@ namespace TaskManagerApi.Controllers
             if (HttpContext.WebSockets.IsWebSocketRequest)
             {
                 using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-                var notificationService = new NotificationWebSocketService(webSocket, _logger);
-                await notificationService.ExecuteSendingAsync();
+                await _notificationWebSocketService.ExecuteSendingAsync(webSocket);
             }
             else
             {
@@ -70,8 +72,7 @@ namespace TaskManagerApi.Controllers
             if (HttpContext.WebSockets.IsWebSocketRequest)
             {
                 using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-                var processesWebSocketService = new ProcessesWebSocketService(webSocket, _logger);
-                await processesWebSocketService.ExecuteSendingAsync();
+                await _processesWebSocketService.ExecuteSendingAsync(webSocket);
             }
             else
             {
