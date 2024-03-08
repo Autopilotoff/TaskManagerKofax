@@ -21,9 +21,9 @@ tableContainer.appendChild(createTable(config.tableHeader));
 // }, 4000, jsonData);
 
 
-let socket = new WebSocket(config.currentProcessesUrl);
+const processesSocket = new WebSocket(config.currentProcessesUrl);
 
-socket.onmessage = function (event) {
+processesSocket.onmessage = function (event) {
 	const jsonData = JSON.parse(event.data);
 	deleteTableRows(jsonData.deleted);
 	updateTableRows(jsonData.updated);
@@ -32,8 +32,8 @@ socket.onmessage = function (event) {
 
 const refreshIntervalId = setInterval(requestData, config.requestInterval);
 function requestData() {
-	if (socket && socket.readyState == WebSocket.OPEN) {
-		socket.send('requestData');
+	if (processesSocket && processesSocket.readyState == WebSocket.OPEN) {
+		processesSocket.send('requestData');
 	}
 	else {
 		clearInterval(refreshIntervalId);
@@ -41,7 +41,7 @@ function requestData() {
 }
 
 window.addEventListener('beforeunload', function (e) {
-	if (socket && socket.readyState !== WebSocket.CLOSED) {
-		socket.close();
+	if (processesSocket && processesSocket.readyState !== WebSocket.CLOSED) {
+		processesSocket.close();
 	}
 });
