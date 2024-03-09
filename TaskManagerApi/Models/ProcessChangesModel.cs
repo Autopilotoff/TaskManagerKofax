@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace TaskManagerApi.Models
 {
-    public class ProcessActionModel
+    public class ProcessChangesModel
     {
         [JsonPropertyName("added")]
         public IEnumerable<ProcessModel> AddedProcesses { get; set; }

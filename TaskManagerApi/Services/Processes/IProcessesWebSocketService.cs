@@ -1,7 +1,7 @@
 ﻿
 using System.Net.WebSockets;
 
-namespace TaskManagerApi.Services
+namespace TaskManagerApi.Services.Processes
 {
     public interface IProcessesWebSocketService
     {

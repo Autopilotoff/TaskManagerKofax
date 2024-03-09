@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
+using TaskManagerApi.Facades;
 using TaskManagerApi.SettingsModels;
 
 namespace TaskManagerApi.Services.Notifications
@@ -10,7 +11,7 @@ namespace TaskManagerApi.Services.Notifications
     {
         private readonly ILogger<INotificationWebSocketService> _logger;
         private readonly ConcurrentQueue<string> _messagesQueue;
-        private readonly List<Counter> _counters;
+        private readonly List<PerformanceWatcher> _watchers;
 
         private WebSocket _webSocket;
 
@@ -25,7 +26,7 @@ namespace TaskManagerApi.Services.Notifications
             )
         {
             _logger = logger;
-            _counters = CreateCounters(options);
+            _watchers = CreateWatchers(options);
             _messagesQueue = new ConcurrentQueue<string>();
             CancellationMillisecondsTimeOut = notificationSettings?.Value?.CancellationMillisecondsTimeOut ?? CancellationMillisecondsTimeOut;
             CheckMillisecondsTimeout = notificationSettings?.Value?.CheckMillisecondsTimeout ?? CheckMillisecondsTimeout;
@@ -44,7 +45,7 @@ namespace TaskManagerApi.Services.Notifications
             finally
             {
                 await StopWatchingAsync();
-                _logger.LogInformation("...Watching stoped.");
+                _logger.LogInformation("...Watching stopped.");
             }
         }
 
@@ -84,40 +85,37 @@ namespace TaskManagerApi.Services.Notifications
 
         private async Task StartWatchingAsync()
         {
-            foreach (var couter in _counters)
+            foreach (var watcher in _watchers)
             {
-                Task.Run(() => couter.StartCountAsync(this.Notify));
+                await watcher.StartWatchingAsync(this.EnqueueMessage);
             }
         }
 
         private async Task StopWatchingAsync()
         {
-            _counters.ForEach(counter => counter.StopCountAsync());
+            _watchers.ForEach(counter => counter.StopWatchingAsync());
         }
 
-        private void Notify(string message)
+        private void EnqueueMessage(string message)
         {
             _messagesQueue.Enqueue(message);
         }
 
-        private List<Counter> CreateCounters(IOptions<PerformanceCounterSettings> options)
+        private List<PerformanceWatcher> CreateWatchers(IOptions<PerformanceCounterSettings> options)
         {
             return options?.Value?.CounterOptions?
-                .Select(x => CreateCounter(x))
+                .Select(x => CreateWatcher(x))
                 .ToList()
                  ?? throw new ArgumentNullException(nameof(options));
         }
 
-        private Counter CreateCounter(PerformanceCounterOption option)
+        private PerformanceWatcher CreateWatcher(PerformanceCounterOption option)
         {
-            return new Counter(
+            return new PerformanceWatcher(
+                new PerformanceCounterFacade(option.Category, option.Name, option.InstanceName),
                 option.Limit,
-                option.Category,
-                option.Name,
-                option.InstanceName,
                 option.CountMillisecondsTimeout,
                 option.PauseAfterNotifyMilliseconds);
         }
-
     }
 }

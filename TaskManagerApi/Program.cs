@@ -1,5 +1,5 @@
-using Microsoft.AspNetCore.Hosting;
-using TaskManagerApi.Services;
+using TaskManagerApi.Proxies;
+using TaskManagerApi.Services.Processes;
 using TaskManagerApi.Services.Notifications;
 using TaskManagerApi.SettingsModels;
 
@@ -25,6 +25,7 @@ namespace TaskManagerApi
 
             builder.Services.AddScoped<INotificationWebSocketService, NotificationWebSocketService>();
             builder.Services.AddScoped<IProcessesWebSocketService, ProcessesWebSocketService>();
+            builder.Services.AddScoped<IProcessesProxy, ProcessesProxy>();
 
             var app = builder.Build();
 

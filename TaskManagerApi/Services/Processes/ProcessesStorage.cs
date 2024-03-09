@@ -2,7 +2,7 @@
 using System.Diagnostics.CodeAnalysis;
 using TaskManagerApi.Models;
 
-namespace TaskManagerApi.Services
+namespace TaskManagerApi.Services.Processes
 {
     public class ProcessesStorage
     {
@@ -11,14 +11,14 @@ namespace TaskManagerApi.Services
         private readonly ProcessModelComparer _processModeComparer = new ProcessModelComparer();
 
 
-        public async Task<ProcessActionModel> GetChangesAsync(IEnumerable<ProcessModel> processes)
+        public async Task<ProcessChangesModel> GetChangesAsync(IEnumerable<ProcessModel> processes)
         {
             var taskAdd = AddAsync(processes);
             var taskDelete = DeleteAsync(processes);
             var taskUpdate = UpdateAsync(processes);
             await Task.WhenAll(taskAdd, taskDelete, taskUpdate);
 
-            return new ProcessActionModel
+            return new ProcessChangesModel
             {
                 AddedProcesses = taskAdd.Result,
                 DeletedProcesses = taskDelete.Result,

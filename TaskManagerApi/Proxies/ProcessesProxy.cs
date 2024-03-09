@@ -1,9 +1,9 @@
 ﻿using System.Diagnostics;
 using TaskManagerApi.Models;
 
-namespace TaskManagerApi.Services
+namespace TaskManagerApi.Proxies
 {
-    public class ProcessesService
+    public class ProcessesProxy : IProcessesProxy
     {
         public ProcessModel[] GetCurrentProcesses()
         {
