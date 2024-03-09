@@ -7,22 +7,8 @@ const config = {
 const tableContainer = document.getElementById('table-container');
 tableContainer.appendChild(createTable(config.tableHeader));
 
-
-// setTimeout((tableContainer, jsonData) => {
-// 	addTableRows(tableContainer, jsonData.added);
-// }, 500, tableContainer, jsonData);
-
-// setTimeout((jsonData) => {
-// 	updateTableRows(jsonData.updated);
-// }, 2000, jsonData);
-
-// setTimeout((jsonData) => {
-// 	deleteTableRows(jsonData.deleted);
-// }, 4000, jsonData);
-
-
 const processesSocket = new WebSocket(config.currentProcessesUrl);
-
+console.info('Processess webSocket is opening...');
 processesSocket.onmessage = function (event) {
 	const jsonData = JSON.parse(event.data);
 	deleteTableRows(jsonData.deleted);
@@ -30,18 +16,23 @@ processesSocket.onmessage = function (event) {
 	addTableRows(tableContainer, jsonData.added);
 }
 
+console.info('Processess watching is starting...');
 const refreshIntervalId = setInterval(requestData, config.requestInterval);
 function requestData() {
-	if (processesSocket && processesSocket.readyState == WebSocket.OPEN) {
-		processesSocket.send('requestData');
-	}
-	else {
+	if (!processesSocket 
+		|| processesSocket.readyState === WebSocket.CLOSING 
+		|| processesSocket.readyState === WebSocket.CLOSED) {
 		clearInterval(refreshIntervalId);
+		console.info('...Processess watching stopped.');
+	}
+	else if (processesSocket.readyState == WebSocket.OPEN) {
+		processesSocket.send('data request');
 	}
 }
 
 window.addEventListener('beforeunload', function (e) {
 	if (processesSocket && processesSocket.readyState !== WebSocket.CLOSED) {
 		processesSocket.close();
+		console.info('...Processes webSocket is closing.');
 	}
 });
