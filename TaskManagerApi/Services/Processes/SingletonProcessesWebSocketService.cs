@@ -1,77 +1,71 @@
-﻿using System.Collections.Concurrent;
-using System.Net.WebSockets;
+﻿using System.Net.WebSockets;
 using System.Text.Json;
 using System.Text;
 using Microsoft.Extensions.Options;
 using TaskManagerApi.SettingsModels;
+using TaskManagerApi.Services.ConnectionManager;
 
 namespace TaskManagerApi.Services.Processes
 {
     public class SingletonProcessesWebSocketService : ISingletonProcessesWebSocketService
     {
-        public int NotifyMillisecondsDelay { get; set; } = 2000;
+        private readonly ISingletonProcessesStorage _processesStorage;
+        
+        private readonly IWebSocketsManager _webSocketsManager;
+        private readonly Timer _sendingTimer;
         
         private int CancellationMillisecondsTimeOut { get; } = 10000;
 
-        private readonly ConcurrentDictionary<string, WebSocket> _sockets;
-        private readonly ConcurrentDictionary<string, DateTime> _expairedLimits;
-        private Timer _sendingTimer;
-
-        private readonly ISingletonProcessesStorage _processesStorage;
+        public int CheckMillisecondsInterval { get; set; } = 2000;
 
         public SingletonProcessesWebSocketService(
             ISingletonProcessesStorage processesStorage,
-            IOptions<ProcessesSettings> processesSettings
+            IOptions<ProcessesSettings> processesSettings,
+            ILogger<SingletonProcessesWebSocketService> logger
             )
         {
-            NotifyMillisecondsDelay = processesSettings?.Value?.NotifyMillisecondsDelay ?? NotifyMillisecondsDelay;
+            CheckMillisecondsInterval = processesSettings?.Value?.NotifyMillisecondsDelay ?? CheckMillisecondsInterval;
             CancellationMillisecondsTimeOut = processesSettings?.Value?.CancellationMillisecondsTimeOut ?? CancellationMillisecondsTimeOut;
-            _processesStorage = processesStorage;
-            _sockets = new ConcurrentDictionary<string, WebSocket>();
-            _expairedLimits = new ConcurrentDictionary<string, DateTime>();
             
-            _sendingTimer = new Timer(callback: Sending, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(NotifyMillisecondsDelay));
+            _processesStorage = processesStorage;
+            _webSocketsManager = new WebSocketsManager(logger, CancellationMillisecondsTimeOut);
+
+            _sendingTimer = new Timer(callback: Sending, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(CheckMillisecondsInterval));
         }
 
-        public bool TryUpdateWebSocketLifeTime(string token)
+        ~SingletonProcessesWebSocketService()
         {
-            if (_expairedLimits.ContainsKey(token))
-            {
-                _expairedLimits[token] = GetLimit();
-                return true;
-            }
+            _sendingTimer.Dispose();
+        }
 
-            return false;
+        public Task<bool> TryUpdateWebSocketLifeTimeAsync(string token)
+        {
+            return _webSocketsManager.TryUpdateWebSocketLifeTimeAsync(token);
         }
 
         public async Task AddSocketAsync(string token, WebSocket socket)
         {
-            _sockets.TryAdd(token, socket);
-            _expairedLimits.TryAdd(token, GetLimit());
-
+            await _webSocketsManager.AddSocketAsync(token, socket);
+            
             var initialData = _processesStorage.GetInitialProcesses();
 
             var arraySegment = ConvertDataToArraySegment(initialData);
             await SendDataAsync(socket, arraySegment);
-
-            Console.WriteLine($"{token} websocket started...");
         }
-
-        private DateTime GetLimit() => DateTime.Now.AddMilliseconds(CancellationMillisecondsTimeOut);
 
         private void Sending(object? state)
         {
-            if (_sockets.Count == 0)
+            _webSocketsManager.ActualizeConnections();
+
+            if (_webSocketsManager.Sockets.Count == 0)
             {
                 return;
             }
 
-            ActualizeConnections();
-
             var data = _processesStorage.GetChanges();
 
             var arraySegment = ConvertDataToArraySegment(data);
-            foreach (var socket in _sockets)
+            foreach (var socket in _webSocketsManager.Sockets)
             {
                 var task = SendDataAsync(socket.Value, arraySegment);
                 task.Wait();
@@ -90,29 +84,6 @@ namespace TaskManagerApi.Services.Processes
             var bytes = Encoding.ASCII.GetBytes(message);
             var arraySegment = new ArraySegment<byte>(bytes, 0, bytes.Length);
             return arraySegment;
-        }
-
-        private void ActualizeConnections()
-        {
-            var tokens = _expairedLimits
-                .Where(x => x.Value < DateTime.Now)
-                .Select(x => x.Key)
-                .ToList();
-
-            foreach (var token in tokens)
-            {
-                _sockets.Remove(token, out var webSocket);
-                if (webSocket != null)
-                {
-                    Console.WriteLine($"{token} websocket is closing...");
-                    var task = webSocket.CloseAsync(WebSocketCloseStatus.EndpointUnavailable, nameof(SingletonProcessesWebSocketService), CancellationToken.None);
-                    task.Wait();
-                    task.Dispose();
-                    Console.WriteLine($"{token} websocket closed.");
-                }
-
-                _expairedLimits.Remove(token, out var time);
-            }
         }
     }
 }

@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Net.WebSockets;
 
-namespace TaskManagerApi.Services
+namespace TaskManagerApi.Services.ConnectionManager
 {
     public interface IWebSocketsManager
     {

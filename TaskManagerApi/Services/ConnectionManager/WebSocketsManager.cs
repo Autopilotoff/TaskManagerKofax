@@ -1,10 +1,10 @@
 ﻿using System.Collections.Concurrent;
 using System.Net.WebSockets;
 
-namespace TaskManagerApi.Services
+namespace TaskManagerApi.Services.ConnectionManager
 {
     public class WebSocketsManager : IWebSocketsManager
-    {        
+    {
         private readonly ConcurrentDictionary<string, DateTime> _expairedLimits;
         private readonly ILogger _logger;
         private int CancellationMillisecondsTimeOut { get; } = 10000;

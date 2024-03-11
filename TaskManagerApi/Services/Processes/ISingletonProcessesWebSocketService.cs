@@ -2,11 +2,12 @@
 
 namespace TaskManagerApi.Services.Processes
 {
-    public interface ISingletonProcessesWebSocketService
+    public interface ISingletonProcessesWebSocketService : IWebSocketService
     {
         Task AddSocketAsync(string token, WebSocket socket);
-        bool TryUpdateWebSocketLifeTime(string token);
+        
+        Task<bool> TryUpdateWebSocketLifeTimeAsync(string token);
 
-        int NotifyMillisecondsDelay { get; set; }
+        int CheckMillisecondsInterval { get; set; }
     }
 }

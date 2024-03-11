@@ -4,13 +4,14 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using TaskManagerApi.Facades;
+using TaskManagerApi.Services.ConnectionManager;
 using TaskManagerApi.SettingsModels;
 
 namespace TaskManagerApi.Services.Notifications
 {
     public class SingletonNotificationWebSocketService : ISingletonNotificationWebSocketService
     {
-        private readonly ILogger<ISingletonNotificationWebSocketService> _logger;
+        private readonly ILogger<SingletonNotificationWebSocketService> _logger;
         private readonly ConcurrentQueue<string> _messagesQueue;
         private readonly List<PerformanceWatcher> _watchers;
 

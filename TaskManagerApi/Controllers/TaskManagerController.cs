@@ -57,12 +57,12 @@ namespace TaskManagerApi.Controllers
                 await _processesWebSocketService.AddSocketAsync(token, webSocket);
                 while (!webSocket.CloseStatus.HasValue)
                 {
-                    await Task.Delay(_processesWebSocketService.NotifyMillisecondsDelay);
+                    await Task.Delay(_processesWebSocketService.CheckMillisecondsInterval);
                 }
             }
             else
             {
-                var isUpdated = _processesWebSocketService.TryUpdateWebSocketLifeTime(token);
+                var isUpdated = await _processesWebSocketService.TryUpdateWebSocketLifeTimeAsync(token);
                 if (!isUpdated)
                 {
                     HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;

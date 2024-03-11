@@ -1,11 +1,12 @@
 ﻿using System.Net.WebSockets;
 
-namespace TaskManagerApi.Services.Notifications
+namespace TaskManagerApi.Services
 {
-    public interface ISingletonNotificationWebSocketService : IWebSocketService
+    public interface IWebSocketService
     {
+        int CheckMillisecondsInterval { get; }
+
         Task AddSocketAsync(string token, WebSocket socket);
         Task<bool> TryUpdateWebSocketLifeTimeAsync(string token);
-        int CheckMillisecondsInterval { get; }
     }
 }
