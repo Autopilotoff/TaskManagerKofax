@@ -28,9 +28,9 @@ namespace TaskManagerApi.Tests
             Action<string> notify = alert => alertReceived = true;
 
             // Act
-            await counter.StartWatchingAsync(notify);
+            counter.StartWatching(notify);
             Thread.Sleep(500);
-            await counter.StopWatchingAsync();
+            counter.StopWatching();
 
             // Assert
             Assert.That(alertReceived, Is.True);
@@ -47,9 +47,9 @@ namespace TaskManagerApi.Tests
                 10);
 
             // Act
-            await counter.StartWatchingAsync(alert => { });
+            counter.StartWatching(alert => { });
             Thread.Sleep(100);
-            await counter.StopWatchingAsync();
+            counter.StopWatching();
 
             // Assert
             Assert.That(counter.IsCancellationRequested, Is.True);

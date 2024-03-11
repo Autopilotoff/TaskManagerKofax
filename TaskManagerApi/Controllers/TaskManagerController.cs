@@ -9,32 +9,44 @@ namespace TaskManagerApi.Controllers
     public class TaskManagerController : ControllerBase
     {
         private readonly ILogger<TaskManagerController> _logger;
-        private readonly INotificationWebSocketService _notificationWebSocketService;
+        
+        private readonly ISingletonNotificationWebSocketService _notificationWebSocketService;
+
         private readonly ISingletonProcessesWebSocketService _processesWebSocketService;
 
         public TaskManagerController(
             ILogger<TaskManagerController> logger,
-            INotificationWebSocketService notificationWebSocketService,
+            ISingletonNotificationWebSocketService singletonNotificationWebSocketService,
             ISingletonProcessesWebSocketService processesWebSocketService)
         {
             _logger = logger;
-            _notificationWebSocketService = notificationWebSocketService;
+            
+            _notificationWebSocketService = singletonNotificationWebSocketService;
             _processesWebSocketService = processesWebSocketService;
         }
 
         [HttpGet(Name = "GetNotifications")]
-        public async Task GetNotificationsAsync()
+        public async Task GetNotificationsAsync(string token)
         {
             if (HttpContext.WebSockets.IsWebSocketRequest)
             {
                 using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-                await _notificationWebSocketService.ExecuteSendingAsync(webSocket);
+                await _notificationWebSocketService.AddSocketAsync(token, webSocket);
+                while (!webSocket.CloseStatus.HasValue)
+                {
+                    await Task.Delay(_notificationWebSocketService.CheckMillisecondsInterval);
+                }
             }
             else
             {
-                HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+                var isUpdated = await _notificationWebSocketService.TryUpdateWebSocketLifeTimeAsync(token);
+                if (!isUpdated)
+                {
+                    HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+                }
             }
         }
+
 
         [HttpGet(Name = "SendCurrentProcessActions")]
         public async Task SendCurrentProcessActionsAsync(string token)

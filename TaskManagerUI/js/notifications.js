@@ -1,31 +1,36 @@
 const notificationsConfig = {
-    notificationsUrl: 'ws://localhost:5159/TaskManager/GetNotifications',
-    requestInterval: 15000
+    notificationsUrl: 'localhost:5159/TaskManager/GetNotifications',
+    pingInterval: 15000,
+	token: createGuid()
 };
 
 const notificationContainer = document.getElementById('notification-container');
 
-const notificationSocket = new WebSocket(notificationsConfig.notificationsUrl);
+const notificationsUrl = `ws://${notificationsConfig.notificationsUrl}?token=${notificationsConfig.token}`;
+
+const notificationSocket = new WebSocket(notificationsUrl);
 console.info('Notifications webSocket is opening...');
+
 notificationSocket.onmessage = function (event) {
     const div = document.createElement('div');
     div.textContent = event.data;
     notificationContainer.appendChild(div);
 }
 
-console.info('Notifications watching is starting...');
-const refreshNotificationIntervalId = setInterval(ping, notificationsConfig.requestInterval);
-function ping() {
-    if (!notificationSocket
-        || notificationSocket.readyState === WebSocket.CLOSING
-        || notificationSocket.readyState === WebSocket.CLOSED) {
-        clearInterval(refreshNotificationIntervalId);
-        console.info('...Notifications watching stopped.');
-    }
-    else if (notificationSocket.readyState == WebSocket.OPEN) {
-		notificationSocket.send('ping');
-	}
-}
+console.info('Notifications ping is starting...');
+let refreshPingIntervalId = null;
+const pingNotificationsUrl = `http://${notificationsConfig.notificationsUrl}?token=${notificationsConfig.token}`;
+
+notificationSocket.onopen = () => {
+	refreshPingIntervalId = setInterval(() => {
+		fetch(pingNotificationsUrl, { mode: 'no-cors' });
+	}, notificationsConfig.pingInterval);
+};
+
+notificationSocket.onclose = () => {
+	console.info('... Notifications webSocket closed.');
+	clearInterval(refreshPingIntervalId);
+};
 
 window.addEventListener('beforeunload', function (e) {
     if (notificationSocket && notificationSocket.readyState !== WebSocket.CLOSED) {

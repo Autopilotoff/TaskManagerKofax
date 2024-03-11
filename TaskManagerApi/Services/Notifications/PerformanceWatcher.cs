@@ -30,7 +30,7 @@ namespace TaskManagerApi.Services.Notifications
             _cancellationTokenSource = new CancellationTokenSource();
         }
 
-        public Task StartWatchingAsync(Action<string> notify)
+        public void StartWatching(Action<string> notify)
         {
             Task.Run(() =>
             {
@@ -46,14 +46,11 @@ namespace TaskManagerApi.Services.Notifications
                     Thread.Sleep(CountMillisecondsTimeout);
                 }
             }, _cancellationTokenSource.Token);
-
-            return Task.CompletedTask;
         }
 
-        public Task StopWatchingAsync()
+        public void StopWatching()
         {
             _cancellationTokenSource.Cancel(true);
-            return Task.CompletedTask;
         }
 
         public bool IsCancellationRequested => _cancellationTokenSource.IsCancellationRequested;

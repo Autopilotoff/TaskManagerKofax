@@ -24,7 +24,7 @@ namespace TaskManagerApi
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
-            builder.Services.AddScoped<INotificationWebSocketService, NotificationWebSocketService>();
+            builder.Services.AddSingleton<ISingletonNotificationWebSocketService, SingletonNotificationWebSocketService>();
 
             builder.Services.AddSingleton<IProcessesProxy, ProcessesProxy>();
             builder.Services.AddSingleton<ISingletonProcessesWebSocketService, SingletonProcessesWebSocketService>();

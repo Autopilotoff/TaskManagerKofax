@@ -4,6 +4,6 @@
     {
         public int? CancellationMillisecondsTimeOut { get; set; }
 
-        public int? CheckMillisecondsTimeout { get; set; }
+        public int? CheckMillisecondsInterval { get; set; }
     }
 }
