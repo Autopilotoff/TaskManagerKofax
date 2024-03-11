@@ -1,6 +1,6 @@
 const config = {
 	tableHeader: ['Id', 'Process Name', 'Nonpaged SystemMemory Size64', 'Paged Memory Size64'],
-	currentProcessesUrl: 'localhost:5159/TaskManager/SendCurrentProcessActions',
+	currentProcessesUrl: 'localhost:5159/TaskManager/GetCurrentProcessActions',
 	pingTimeout: 5000,
 	token: createGuid()
 };

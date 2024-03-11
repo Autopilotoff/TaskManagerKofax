@@ -48,8 +48,8 @@ namespace TaskManagerApi.Controllers
         }
 
 
-        [HttpGet(Name = "SendCurrentProcessActions")]
-        public async Task SendCurrentProcessActionsAsync(string token)
+        [HttpGet(Name = "GetCurrentProcessActions")]
+        public async Task GetCurrentProcessActionsAsync(string token)
         {
             if (HttpContext.WebSockets.IsWebSocketRequest)
             {
