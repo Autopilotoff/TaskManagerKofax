@@ -4,10 +4,10 @@ using TaskManagerApi.Services.Notifications;
 namespace TaskManagerApi.Tests
 {
     [TestFixture]
-    public class PerformanceWatcherTests
+    public class PerformanceMonitorTests
     {
         [Test]
-        public async Task StartWatchingAsync_AlertWhenLimitExceeded()
+        public async Task StartMonitoring_AlertWhenLimitExceeded()
         {
             // Arrange
             int limit = 100;
@@ -19,7 +19,7 @@ namespace TaskManagerApi.Tests
             int exceedLimit = 150;
             bool alertReceived = false;
 
-            var counter = new PerformanceWatcher(
+            var counter = new PerformanceMonitor(
                 new PerformanceCounterFacade(category, name, instanceName) { GetCounterNextValues = () => exceedLimit },
                 limit,
                 countMillisecondsTimeout,
@@ -28,28 +28,28 @@ namespace TaskManagerApi.Tests
             Action<string> notify = alert => alertReceived = true;
 
             // Act
-            counter.StartWatching(notify);
+            counter.StartMonitoring(notify);
             Thread.Sleep(500);
-            counter.StopWatching();
+            counter.StopMonitoring();
 
             // Assert
             Assert.That(alertReceived, Is.True);
         }
 
         [Test]
-        public async Task StopWatchingAsync_StopsWatching()
+        public async Task StopMonitoring_Stopped()
         {
             // Arrange
-            PerformanceWatcher counter = new PerformanceWatcher(
+            PerformanceMonitor counter = new PerformanceMonitor(
                 new PerformanceCounterFacade("Processor", "% Processor Time", "_Total"),
                 100,
                 10,
                 10);
 
             // Act
-            counter.StartWatching(alert => { });
+            counter.StartMonitoring(alert => { });
             Thread.Sleep(100);
-            counter.StopWatching();
+            counter.StopMonitoring();
 
             // Assert
             Assert.That(counter.IsCancellationRequested, Is.True);

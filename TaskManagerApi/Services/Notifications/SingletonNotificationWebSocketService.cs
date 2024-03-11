@@ -9,59 +9,65 @@ using TaskManagerApi.SettingsModels;
 
 namespace TaskManagerApi.Services.Notifications
 {
+    /// <inheritdoc />
     public class SingletonNotificationWebSocketService : ISingletonNotificationWebSocketService
     {
         private readonly ILogger<SingletonNotificationWebSocketService> _logger;
         private readonly ConcurrentQueue<string> _messagesQueue;
-        private readonly List<PerformanceWatcher> _watchers;
+        private readonly List<PerformanceMonitor> _monitors;
 
         private readonly IWebSocketsManager _webSocketsManager;
         private readonly Timer _sendingTimer;
 
-        private int CancellationMillisecondsTimeOut { get; } = 30000;
+        private int ConnectionLifetimeMilliseconds { get; } = 30000;
+        
+        /// <inheritdoc />
+        public int SendDataMillisecondsInterval { get; } = 500;
 
-        public int CheckMillisecondsInterval { get; } = 500;
-
-
+        /// <param name="logger">.</param>
+        /// <param name="performanceCountersOptions"><see cref="PerformanceCounterSettings"/></param>
+        /// <param name="notificationSettings"><see cref="NotificationServiceSettings"/></param>
         public SingletonNotificationWebSocketService(
             ILogger<SingletonNotificationWebSocketService> logger,
-            IOptions<PerformanceCounterSettings> options,
-            IOptions<NotificationSettings> notificationSettings
+            IOptions<PerformanceCounterSettings> performanceCountersOptions,
+            IOptions<NotificationServiceSettings> notificationSettings
             )
         {
             _logger = logger;
 
             _messagesQueue = new ConcurrentQueue<string>();
-            _watchers = CreateWatchers(options);
+            _monitors = CreateMonitors(performanceCountersOptions);
 
-            CancellationMillisecondsTimeOut = notificationSettings?.Value?.CancellationMillisecondsTimeOut ?? CancellationMillisecondsTimeOut;
-            _webSocketsManager = new WebSocketsManager(logger, CancellationMillisecondsTimeOut);
+            ConnectionLifetimeMilliseconds = notificationSettings?.Value?.ConnectionLifetimeMilliseconds ?? ConnectionLifetimeMilliseconds;
+            _webSocketsManager = new WebSocketsManager(logger, ConnectionLifetimeMilliseconds);
 
-            CheckMillisecondsInterval = notificationSettings?.Value?.CheckMillisecondsInterval ?? CheckMillisecondsInterval;
-            _sendingTimer = new Timer(callback: Sending, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(CheckMillisecondsInterval));
+            SendDataMillisecondsInterval = notificationSettings?.Value?.SendDataMillisecondsInterval ?? SendDataMillisecondsInterval;
+            _sendingTimer = new Timer(callback: SendNotifications, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(SendDataMillisecondsInterval));
 
-            StartWatching();
+            StartMonitoring();
         }
 
         ~SingletonNotificationWebSocketService()
         {
-            StopWatching();
+            StopMonitoring();
             _sendingTimer.Dispose();
         }
 
+        /// <inheritdoc />
         public Task AddSocketAsync(string token, WebSocket socket)
         {
-            return _webSocketsManager.AddSocketAsync(token, socket);
+            return Task.FromResult(_webSocketsManager.AddSocket(token, socket));
         }
 
+        /// <inheritdoc />
         public Task<bool> TryUpdateWebSocketLifeTimeAsync(string token)
         {
-            return _webSocketsManager.TryUpdateWebSocketLifeTimeAsync(token);
+            return Task.FromResult(_webSocketsManager.TryUpdateWebSocketLifeTime(token));
         }
 
-        private void Sending(object? state)
+        private void SendNotifications(object? state)
         {
-            _webSocketsManager.ActualizeConnections();
+            _webSocketsManager.UpdateConnections();
 
             if (_webSocketsManager.Sockets.Count == 0)
             {
@@ -84,13 +90,13 @@ namespace TaskManagerApi.Services.Notifications
 
             foreach (var socket in _webSocketsManager.Sockets)
             {
-                var task = NotifyAsync(socket.Value, data);
+                var task = SendDataAsync(socket.Value, data);
                 task.Wait();
                 task.Dispose();
             }
         }
 
-        private async Task NotifyAsync(WebSocket webSocket, ArraySegment<byte> arraySegment)
+        private async Task SendDataAsync(WebSocket webSocket, ArraySegment<byte> arraySegment)
         {
             await webSocket.SendAsync(arraySegment, WebSocketMessageType.Text, true, CancellationToken.None);
         }
@@ -103,20 +109,20 @@ namespace TaskManagerApi.Services.Notifications
             return arraySegment;
         }
 
-        private void StartWatching()
+        private void StartMonitoring()
         {
-            _logger.LogInformation("Watching started...");
+            _logger.LogInformation("Monitoring started...");
 
-            foreach (var watcher in _watchers)
+            foreach (var monitor in _monitors)
             {
-                watcher.StartWatching(this.EnqueueMessage);
+                monitor.StartMonitoring(this.EnqueueMessage);
             }
         }
 
-        private void StopWatching()
+        private void StopMonitoring()
         {
-            _watchers.ForEach(counter => counter.StopWatching());
-            _logger.LogInformation("...Watching stopped.");
+            _monitors.ForEach(counter => counter.StopMonitoring());
+            _logger.LogInformation("...Monitoring stopped.");
         }
 
         private void EnqueueMessage(string message)
@@ -124,21 +130,21 @@ namespace TaskManagerApi.Services.Notifications
             _messagesQueue.Enqueue(message);
         }
 
-        private List<PerformanceWatcher> CreateWatchers(IOptions<PerformanceCounterSettings> options)
+        private List<PerformanceMonitor> CreateMonitors(IOptions<PerformanceCounterSettings> options)
         {
             return options?.Value?.CounterOptions?
-                .Select(x => CreateWatcher(x))
+                .Select(x => CreateMonitor(x))
                 .ToList()
                  ?? throw new ArgumentNullException(nameof(options));
         }
 
-        private PerformanceWatcher CreateWatcher(PerformanceCounterOption option)
+        private PerformanceMonitor CreateMonitor(PerformanceCounterOption option)
         {
-            return new PerformanceWatcher(
+            return new PerformanceMonitor(
                 new PerformanceCounterFacade(option.Category, option.Name, option.InstanceName),
                 option.Limit,
-                option.CountMillisecondsTimeout,
-                option.PauseAfterNotifyMilliseconds);
+                option.CheckIntervalMilliseconds,
+                option.PauseAfterDetectionMilliseconds);
         }
     }
 }

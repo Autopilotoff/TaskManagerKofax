@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using TaskManagerApi.Services.Processes;
 using TaskManagerApi.Services.Notifications;
+using TaskManagerApi.Services;
 
 namespace TaskManagerApi.Controllers
 {
@@ -25,44 +26,42 @@ namespace TaskManagerApi.Controllers
             _processesWebSocketService = processesWebSocketService;
         }
 
+        /// <summary>
+        /// Notifications subscription.
+        /// </summary>
+        /// <param name="token">Client token.</param>
+        /// <returns>.</returns>
         [HttpGet(Name = "GetNotifications")]
         public async Task GetNotificationsAsync(string token)
         {
-            if (HttpContext.WebSockets.IsWebSocketRequest)
-            {
-                using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-                await _notificationWebSocketService.AddSocketAsync(token, webSocket);
-                while (!webSocket.CloseStatus.HasValue)
-                {
-                    await Task.Delay(_notificationWebSocketService.CheckMillisecondsInterval);
-                }
-            }
-            else
-            {
-                var isUpdated = await _notificationWebSocketService.TryUpdateWebSocketLifeTimeAsync(token);
-                if (!isUpdated)
-                {
-                    HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
-                }
-            }
+            await AddSubscriptionAsync(token, _notificationWebSocketService);
         }
 
-
+        /// <summary>
+        /// Current processes subscription.
+        /// </summary>
+        /// <param name="token">Client token.</param>
+        /// <returns>.</returns>
         [HttpGet(Name = "GetCurrentProcessActions")]
         public async Task GetCurrentProcessActionsAsync(string token)
+        {
+            await AddSubscriptionAsync(token, _processesWebSocketService);
+        }
+
+        private async Task AddSubscriptionAsync(string token, IWebSocketService webSocketService)
         {
             if (HttpContext.WebSockets.IsWebSocketRequest)
             {
                 using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-                await _processesWebSocketService.AddSocketAsync(token, webSocket);
+                await webSocketService.AddSocketAsync(token, webSocket);
                 while (!webSocket.CloseStatus.HasValue)
                 {
-                    await Task.Delay(_processesWebSocketService.CheckMillisecondsInterval);
+                    await Task.Delay(webSocketService.SendDataMillisecondsInterval);
                 }
             }
             else
             {
-                var isUpdated = await _processesWebSocketService.TryUpdateWebSocketLifeTimeAsync(token);
+                var isUpdated = await webSocketService.TryUpdateWebSocketLifeTimeAsync(token);
                 if (!isUpdated)
                 {
                     HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;

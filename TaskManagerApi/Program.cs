@@ -15,8 +15,8 @@ namespace TaskManagerApi
             // Add services to the container.
 
             builder.Services.Configure<PerformanceCounterSettings>(builder.Configuration.GetSection("PerformanceCounters"));
-            builder.Services.Configure<NotificationSettings>(builder.Configuration.GetSection("NotificationSettings"));
-            builder.Services.Configure<ProcessesSettings>(builder.Configuration.GetSection("ProcessesSettings"));
+            builder.Services.Configure<NotificationServiceSettings>(builder.Configuration.GetSection("NotificationSettings"));
+            builder.Services.Configure<ProcessServiceSettings>(builder.Configuration.GetSection("ProcessesSettings"));
 
             builder.Services.AddControllers();
 

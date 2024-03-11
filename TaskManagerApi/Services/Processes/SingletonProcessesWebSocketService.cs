@@ -7,6 +7,7 @@ using TaskManagerApi.Services.ConnectionManager;
 
 namespace TaskManagerApi.Services.Processes
 {
+    /// <inheritdoc />
     public class SingletonProcessesWebSocketService : ISingletonProcessesWebSocketService
     {
         private readonly ISingletonProcessesStorage _processesStorage;
@@ -16,21 +17,26 @@ namespace TaskManagerApi.Services.Processes
         
         private int CancellationMillisecondsTimeOut { get; } = 10000;
 
-        public int CheckMillisecondsInterval { get; set; } = 2000;
+        /// <inheritdoc />
+        public int SendDataMillisecondsInterval { get; set; } = 2000;
 
+
+        /// <param name="processesStorage"><see cref="ISingletonProcessesStorage"/></param>
+        /// <param name="processesSettings"><see cref="ProcessServiceSettings"/></param>
+        /// <param name="logger">.</param>
         public SingletonProcessesWebSocketService(
             ISingletonProcessesStorage processesStorage,
-            IOptions<ProcessesSettings> processesSettings,
+            IOptions<ProcessServiceSettings> processesSettings,
             ILogger<SingletonProcessesWebSocketService> logger
             )
         {
-            CheckMillisecondsInterval = processesSettings?.Value?.NotifyMillisecondsDelay ?? CheckMillisecondsInterval;
-            CancellationMillisecondsTimeOut = processesSettings?.Value?.CancellationMillisecondsTimeOut ?? CancellationMillisecondsTimeOut;
+            SendDataMillisecondsInterval = processesSettings?.Value?.SendDataMillisecondsInterval ?? SendDataMillisecondsInterval;
+            CancellationMillisecondsTimeOut = processesSettings?.Value?.ConnectionLifetimeMilliseconds ?? CancellationMillisecondsTimeOut;
             
             _processesStorage = processesStorage;
             _webSocketsManager = new WebSocketsManager(logger, CancellationMillisecondsTimeOut);
 
-            _sendingTimer = new Timer(callback: Sending, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(CheckMillisecondsInterval));
+            _sendingTimer = new Timer(callback: Sending, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(SendDataMillisecondsInterval));
         }
 
         ~SingletonProcessesWebSocketService()
@@ -38,14 +44,16 @@ namespace TaskManagerApi.Services.Processes
             _sendingTimer.Dispose();
         }
 
+        /// <inheritdoc />
         public Task<bool> TryUpdateWebSocketLifeTimeAsync(string token)
         {
-            return _webSocketsManager.TryUpdateWebSocketLifeTimeAsync(token);
+            return Task.FromResult(_webSocketsManager.TryUpdateWebSocketLifeTime(token));
         }
 
+        /// <inheritdoc />
         public async Task AddSocketAsync(string token, WebSocket socket)
         {
-            await _webSocketsManager.AddSocketAsync(token, socket);
+            _webSocketsManager.AddSocket(token, socket);
             
             var initialData = _processesStorage.GetInitialProcesses();
 
@@ -55,7 +63,7 @@ namespace TaskManagerApi.Services.Processes
 
         private void Sending(object? state)
         {
-            _webSocketsManager.ActualizeConnections();
+            _webSocketsManager.UpdateConnections();
 
             if (_webSocketsManager.Sockets.Count == 0)
             {

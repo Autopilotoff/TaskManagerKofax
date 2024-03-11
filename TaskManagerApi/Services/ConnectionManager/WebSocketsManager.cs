@@ -3,39 +3,45 @@ using System.Net.WebSockets;
 
 namespace TaskManagerApi.Services.ConnectionManager
 {
+    /// <inheritdoc />
     public class WebSocketsManager : IWebSocketsManager
     {
         private readonly ConcurrentDictionary<string, DateTime> _expairedLimits;
         private readonly ILogger _logger;
-        private int CancellationMillisecondsTimeOut { get; } = 10000;
+        private int LifetimeMilliseconds { get; } = 10000;
 
+        /// <inheritdoc />
         public ConcurrentDictionary<string, WebSocket> Sockets { get; private set; }
 
-        public WebSocketsManager(ILogger logger, int? cancellationMillisecondsTimeOut)
+        /// <param name="logger">External logger.</param>
+        /// <param name="lifetimeMilliseconds">Life time of the connections.</param>
+        public WebSocketsManager(ILogger logger, int? lifetimeMilliseconds)
         {
             _logger = logger;
 
             Sockets = new ConcurrentDictionary<string, WebSocket>();
             _expairedLimits = new ConcurrentDictionary<string, DateTime>();
 
-            CancellationMillisecondsTimeOut = cancellationMillisecondsTimeOut ?? CancellationMillisecondsTimeOut;
+            LifetimeMilliseconds = lifetimeMilliseconds ?? LifetimeMilliseconds;
         }
 
-        public async Task<bool> TryUpdateWebSocketLifeTimeAsync(string token)
+        /// <inheritdoc />
+        public bool TryUpdateWebSocketLifeTime(string token)
         {
             if (_expairedLimits.ContainsKey(token))
             {
-                _expairedLimits[token] = GetLimit();
+                _expairedLimits[token] = GetEndDateTime();
                 return true;
             }
 
             return false;
         }
 
-        public async Task<bool> AddSocketAsync(string token, WebSocket socket)
+        /// <inheritdoc />
+        public bool AddSocket(string token, WebSocket socket)
         {
             var isAdded = Sockets.TryAdd(token, socket)
-                && _expairedLimits.TryAdd(token, GetLimit());
+                && _expairedLimits.TryAdd(token, GetEndDateTime());
             if (isAdded)
             {
                 _logger.LogInformation($"{token} websocket started...");
@@ -48,7 +54,8 @@ namespace TaskManagerApi.Services.ConnectionManager
             return isAdded;
         }
 
-        public void ActualizeConnections()
+        /// <inheritdoc />
+        public void UpdateConnections()
         {
             var tokens = _expairedLimits
                 .Where(x => x.Value < DateTime.Now)
@@ -71,7 +78,6 @@ namespace TaskManagerApi.Services.ConnectionManager
             }
         }
 
-        private DateTime GetLimit() => DateTime.Now.AddMilliseconds(CancellationMillisecondsTimeOut);
-
+        private DateTime GetEndDateTime() => DateTime.Now.AddMilliseconds(LifetimeMilliseconds);
     }
 }

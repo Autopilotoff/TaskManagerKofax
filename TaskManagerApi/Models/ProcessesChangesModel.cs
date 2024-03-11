@@ -1,9 +1,8 @@
-﻿using System.Diagnostics;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
 namespace TaskManagerApi.Models
 {
-    public class ProcessChangesModel
+    public class ProcessesChangesModel
     {
         [JsonPropertyName("added")]
         public IEnumerable<ProcessModel> AddedProcesses { get; set; }

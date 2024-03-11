@@ -2,9 +2,21 @@
 
 namespace TaskManagerApi.Services.Processes
 {
+    /// <summary>
+    /// A storage of processes.
+    /// </summary>
     public interface ISingletonProcessesStorage
     {
-        ProcessChangesModel GetChanges();
-        ProcessChangesModel GetInitialProcesses();
+        /// <summary>
+        /// Gettting of proccesses changes.
+        /// </summary>
+        /// <returns>Changes model.</returns>
+        ProcessesChangesModel GetChanges();
+
+        /// <summary>
+        /// Getting of an initial process list.
+        /// </summary>
+        /// <returns>Changes model.</returns>
+        ProcessesChangesModel GetInitialProcesses();
     }
 }

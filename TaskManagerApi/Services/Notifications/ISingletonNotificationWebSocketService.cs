@@ -2,10 +2,10 @@
 
 namespace TaskManagerApi.Services.Notifications
 {
+    /// <summary>
+    /// A service for sending notifications to webSockets.
+    /// </summary>
     public interface ISingletonNotificationWebSocketService : IWebSocketService
     {
-        Task AddSocketAsync(string token, WebSocket socket);
-        Task<bool> TryUpdateWebSocketLifeTimeAsync(string token);
-        int CheckMillisecondsInterval { get; }
     }
 }

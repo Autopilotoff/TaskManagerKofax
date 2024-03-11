@@ -2,11 +2,29 @@
 
 namespace TaskManagerApi.Services
 {
+    /// <summary>
+    /// A service for working with webSockets.
+    /// </summary>
     public interface IWebSocketService
     {
-        int CheckMillisecondsInterval { get; }
+        /// <summary>
+        /// Sending data interval.
+        /// </summary>
+        int SendDataMillisecondsInterval { get; }
 
+        /// <summary>
+        /// Adding a connection.
+        /// </summary>
+        /// <param name="token">Client token.</param>
+        /// <param name="socket">.</param>
+        /// <returns>Sign of successful addition.</returns>
         Task AddSocketAsync(string token, WebSocket socket);
+
+        /// <summary>
+        /// Updating of the connection lifetime.
+        /// </summary>
+        /// <param name="token">Client token.</param>
+        /// <returns>Sign of successful update.</returns>
         Task<bool> TryUpdateWebSocketLifeTimeAsync(string token);
     }
 }

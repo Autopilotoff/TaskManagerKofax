@@ -4,6 +4,7 @@ using TaskManagerApi.Proxies;
 
 namespace TaskManagerApi.Services.Processes
 {
+    /// <inheritdoc />
     public class SingletonProcessesStorage : ISingletonProcessesStorage
     {
         private readonly IProcessesProxy _processesProxy;
@@ -19,20 +20,22 @@ namespace TaskManagerApi.Services.Processes
             _collection = processes.ToDictionary(x => x.Id, y => y);
         }
 
-        public ProcessChangesModel GetInitialProcesses()
+        /// <inheritdoc />
+        public ProcessesChangesModel GetInitialProcesses()
         {
-            var model = new ProcessChangesModel { AddedProcesses = _collection.Values };
+            var model = new ProcessesChangesModel { AddedProcesses = _collection.Values };
             return model;
         }
 
-        public ProcessChangesModel GetChanges()
+        /// <inheritdoc />
+        public ProcessesChangesModel GetChanges()
         {
             var processes = _processesProxy.GetCurrentProcesses();
             var taskDelete = Delete(processes);
             var taskUpdate = Update(processes);
             var taskAdd = Add(processes);
 
-            var model = new ProcessChangesModel
+            var model = new ProcessesChangesModel
             {
                 AddedProcesses = taskAdd,
                 DeletedProcesses = taskDelete,
@@ -42,6 +45,11 @@ namespace TaskManagerApi.Services.Processes
             return model;
         }
 
+        /// <summary>
+        /// Adding new processes to the storage.
+        /// </summary>
+        /// <param name="processes">Current processes.</param>
+        /// <returns>Added processes.</returns>
         private IEnumerable<ProcessModel> Add(IEnumerable<ProcessModel> processes)
         {
             var forAdd = processes.ExceptBy(_collection.Values, x => x, _idProcessModeComparer).ToList();
@@ -54,6 +62,11 @@ namespace TaskManagerApi.Services.Processes
             return forAdd;
         }
 
+        /// <summary>
+        /// Deleting removed processes from the stopage.
+        /// </summary>
+        /// <param name="processes">Current processes.</param>
+        /// <returns>Deleted processes.</returns>
         private IEnumerable<int> Delete(IEnumerable<ProcessModel> processes)
         {
             var forDelete = _collection.ExceptBy(processes, x => x.Value, _idProcessModeComparer).ToList();
@@ -66,6 +79,11 @@ namespace TaskManagerApi.Services.Processes
             return forDelete.Select(x => x.Key).ToList();
         }
 
+        /// <summary>
+        /// Updating processes data in the stopage.
+        /// </summary>
+        /// <param name="processes">Current processes.</param>
+        /// <returns>Updated processes.</returns>
         private IEnumerable<ProcessModel> Update(IEnumerable<ProcessModel> processes)
         {
             var forUpdate = processes
@@ -80,6 +98,9 @@ namespace TaskManagerApi.Services.Processes
             return forUpdate;
         }
 
+        /// <summary>
+        /// Process comparer by Ids.
+        /// </summary>
         private class IdProcessModelComparer : IEqualityComparer<ProcessModel>
         {
             public bool Equals(ProcessModel? x, ProcessModel? y)
@@ -98,6 +119,9 @@ namespace TaskManagerApi.Services.Processes
             }
         }
 
+        /// <summary>
+        /// Process comparer by values.
+        /// </summary>
         private class ProcessModelComparer : IEqualityComparer<ProcessModel>
         {
             public bool Equals(ProcessModel? x, ProcessModel? y)
