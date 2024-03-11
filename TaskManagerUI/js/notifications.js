@@ -8,9 +8,9 @@ const notificationContainer = document.getElementById('notification-container');
 const notificationSocket = new WebSocket(notificationsConfig.notificationsUrl);
 console.info('Notifications webSocket is opening...');
 notificationSocket.onmessage = function (event) {
-    const th = document.createElement('div');
-    th.textContent = event.data;
-    notificationContainer.appendChild(th);
+    const div = document.createElement('div');
+    div.textContent = event.data;
+    notificationContainer.appendChild(div);
 }
 
 console.info('Notifications watching is starting...');

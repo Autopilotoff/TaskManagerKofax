@@ -1,34 +1,41 @@
 const config = {
 	tableHeader: ['Id', 'Process Name', 'Nonpaged SystemMemory Size64', 'Paged Memory Size64'],
-	currentProcessesUrl: 'ws://localhost:5159/TaskManager/SendCurrentProcessActions',
-	requestInterval: 2000
+	currentProcessesUrl: 'localhost:5159/TaskManager/SendCurrentProcessActions',
+	pingTimeout: 5000,
+	token: createGuid()
 };
 
 const tableContainer = document.getElementById('table-container');
-tableContainer.appendChild(createTable(config.tableHeader));
+const tableService = new TableService();
+tableContainer.appendChild(tableService.createTable(config.tableHeader));
 
-const processesSocket = new WebSocket(config.currentProcessesUrl);
+const currentProcessesUrl = `ws://${config.currentProcessesUrl}?token=${config.token}`;
+const processesSocket = new WebSocket(currentProcessesUrl);
+
 console.info('Processess webSocket is opening...');
 processesSocket.onmessage = function (event) {
 	const jsonData = JSON.parse(event.data);
-	deleteTableRows(jsonData.deleted);
-	updateTableRows(jsonData.updated);
-	addTableRows(tableContainer, jsonData.added);
+
+	tableService.deleteTableRows(jsonData.deleted);
+	tableService.updateTableRows(jsonData.updated);
+	tableService.addTableRows(tableContainer, jsonData.added);
 }
 
-console.info('Processess watching is starting...');
-const refreshIntervalId = setInterval(requestData, config.requestInterval);
-function requestData() {
-	if (!processesSocket 
-		|| processesSocket.readyState === WebSocket.CLOSING 
-		|| processesSocket.readyState === WebSocket.CLOSED) {
-		clearInterval(refreshIntervalId);
-		console.info('...Processess watching stopped.');
-	}
-	else if (processesSocket.readyState == WebSocket.OPEN) {
-		processesSocket.send('data request');
-	}
-}
+console.info('Processess ping is starting...');
+let refreshIntervalId = null;
+const pingUrl = `http://${config.currentProcessesUrl}?token=${config.token}`;
+
+processesSocket.onopen = () => {
+	refreshIntervalId = setInterval(() => {
+		fetch(pingUrl, { mode: 'no-cors' });
+	}, config.pingTimeout);
+};
+
+processesSocket.onclose = () => {
+	console.info('... Processes webSocket closed.');
+	clearInterval(refreshIntervalId);
+};
+
 
 window.addEventListener('beforeunload', function (e) {
 	if (processesSocket && processesSocket.readyState !== WebSocket.CLOSED) {
