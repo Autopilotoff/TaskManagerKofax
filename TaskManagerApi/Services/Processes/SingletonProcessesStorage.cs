@@ -1,32 +1,48 @@
-﻿using System.Collections.Concurrent;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using TaskManagerApi.Models;
+using TaskManagerApi.Proxies;
 
 namespace TaskManagerApi.Services.Processes
 {
-    public class ProcessesStorage
+    public class SingletonProcessesStorage : ISingletonProcessesStorage
     {
-        private ConcurrentDictionary<int, ProcessModel> _collection = new ConcurrentDictionary<int, ProcessModel>();
-        private readonly IdProcessModelComparer _idProcessModeComparer = new IdProcessModelComparer();
-        private readonly ProcessModelComparer _processModeComparer = new ProcessModelComparer();
+        private readonly IProcessesProxy _processesProxy;
+        private static readonly IdProcessModelComparer _idProcessModeComparer = new IdProcessModelComparer();
+        private static readonly ProcessModelComparer _processModeComparer = new ProcessModelComparer();
 
+        private readonly Dictionary<int, ProcessModel> _collection;
 
-        public async Task<ProcessChangesModel> GetChangesAsync(IEnumerable<ProcessModel> processes)
+        public SingletonProcessesStorage(IProcessesProxy processesProxy)
         {
-            var taskAdd = AddAsync(processes);
-            var taskDelete = DeleteAsync(processes);
-            var taskUpdate = UpdateAsync(processes);
-            await Task.WhenAll(taskAdd, taskDelete, taskUpdate);
-
-            return new ProcessChangesModel
-            {
-                AddedProcesses = taskAdd.Result,
-                DeletedProcesses = taskDelete.Result,
-                UpdatedProcesses = taskUpdate.Result
-            };
+            _processesProxy = processesProxy;
+            var processes = processesProxy.GetCurrentProcesses();
+            _collection = processes.ToDictionary(x => x.Id, y => y);
         }
 
-        private async Task<IEnumerable<ProcessModel>> AddAsync(IEnumerable<ProcessModel> processes)
+        public ProcessChangesModel GetInitialProcesses()
+        {
+            var model = new ProcessChangesModel { AddedProcesses = _collection.Values };
+            return model;
+        }
+
+        public ProcessChangesModel GetChanges()
+        {
+            var processes = _processesProxy.GetCurrentProcesses();
+            var taskDelete = Delete(processes);
+            var taskUpdate = Update(processes);
+            var taskAdd = Add(processes);
+
+            var model = new ProcessChangesModel
+            {
+                AddedProcesses = taskAdd,
+                DeletedProcesses = taskDelete,
+                UpdatedProcesses = taskUpdate
+            };
+
+            return model;
+        }
+
+        private IEnumerable<ProcessModel> Add(IEnumerable<ProcessModel> processes)
         {
             var forAdd = processes.ExceptBy(_collection.Values, x => x, _idProcessModeComparer).ToList();
 
@@ -38,7 +54,7 @@ namespace TaskManagerApi.Services.Processes
             return forAdd;
         }
 
-        private async Task<IEnumerable<int>> DeleteAsync(IEnumerable<ProcessModel> processes)
+        private IEnumerable<int> Delete(IEnumerable<ProcessModel> processes)
         {
             var forDelete = _collection.ExceptBy(processes, x => x.Value, _idProcessModeComparer).ToList();
 
@@ -47,10 +63,10 @@ namespace TaskManagerApi.Services.Processes
                 _collection.Remove(item.Key, out var result);
             }
 
-            return forDelete.Select(x => x.Key);
+            return forDelete.Select(x => x.Key).ToList();
         }
 
-        private async Task<IEnumerable<ProcessModel>> UpdateAsync(IEnumerable<ProcessModel> processes)
+        private IEnumerable<ProcessModel> Update(IEnumerable<ProcessModel> processes)
         {
             var forUpdate = processes
                 .IntersectBy(_collection.Values, x => x, _idProcessModeComparer)

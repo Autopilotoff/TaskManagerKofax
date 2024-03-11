@@ -10,47 +10,17 @@ namespace TaskManagerApi.Controllers
     {
         private readonly ILogger<TaskManagerController> _logger;
         private readonly INotificationWebSocketService _notificationWebSocketService;
-        private readonly IProcessesWebSocketService _processesWebSocketService;
+        private readonly ISingletonProcessesWebSocketService _processesWebSocketService;
 
         public TaskManagerController(
             ILogger<TaskManagerController> logger,
             INotificationWebSocketService notificationWebSocketService,
-            IProcessesWebSocketService processesWebSocketService)
+            ISingletonProcessesWebSocketService processesWebSocketService)
         {
             _logger = logger;
             _notificationWebSocketService = notificationWebSocketService;
             _processesWebSocketService = processesWebSocketService;
-
         }
-
-        // [HttpGet(Name = "GetCurrentProcesses")]
-        // public ProcessModel[] GetCurrentProcesses()
-        // {
-        //     var processesService = new ProcessesService();
-        //     return processesService.GetCurrentProcesses();
-        // }
-        // 
-        // [HttpGet(Name = "GetCurrentProcessActions")]
-        // public async Task<ProcessActionModel> GetCurrentProcessActionsAsync()
-        // {
-        //     var processesService = new ProcessesService();
-        //     var processStorage = new ProcessesStorage();
-        //     var ienumerable = await processStorage.GetChangesAsync(processesService.GetCurrentProcesses());
-        //     _logger.LogInformation(ienumerable.AddedProcesses.Count().ToString());
-        // 
-        //     var t = 3;
-        //     while (t > 0)
-        //     {
-        //         var testienumerable = await processStorage.GetChangesAsync(processesService.GetCurrentProcesses());
-        //         _logger.LogInformation(testienumerable.AddedProcesses.Count().ToString());
-        //         _logger.LogInformation(JsonSerializer.Serialize(testienumerable));
-        // 
-        //         t--;
-        //         Thread.Sleep(2000);
-        //     }
-        // 
-        //     return ienumerable;
-        // }
 
         [HttpGet(Name = "GetNotifications")]
         public async Task GetNotificationsAsync()
@@ -67,17 +37,26 @@ namespace TaskManagerApi.Controllers
         }
 
         [HttpGet(Name = "SendCurrentProcessActions")]
-        public async Task SendCurrentProcessActionsAsync()
+        public async Task SendCurrentProcessActionsAsync(string token)
         {
             if (HttpContext.WebSockets.IsWebSocketRequest)
             {
                 using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-                await _processesWebSocketService.ExecuteSendingAsync(webSocket);
+                await _processesWebSocketService.AddSocketAsync(token, webSocket);
+                while (!webSocket.CloseStatus.HasValue)
+                {
+                    await Task.Delay(_processesWebSocketService.NotifyMillisecondsDelay);
+                }
             }
             else
             {
-                HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+                var isUpdated = _processesWebSocketService.TryUpdateWebSocketLifeTime(token);
+                if (!isUpdated)
+                {
+                    HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+                }
             }
         }
     }
+
 }

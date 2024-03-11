@@ -2,6 +2,7 @@ using TaskManagerApi.Proxies;
 using TaskManagerApi.Services.Processes;
 using TaskManagerApi.Services.Notifications;
 using TaskManagerApi.SettingsModels;
+using Microsoft.Extensions.Options;
 
 namespace TaskManagerApi
 {
@@ -24,8 +25,17 @@ namespace TaskManagerApi
             builder.Services.AddSwaggerGen();
 
             builder.Services.AddScoped<INotificationWebSocketService, NotificationWebSocketService>();
-            builder.Services.AddScoped<IProcessesWebSocketService, ProcessesWebSocketService>();
-            builder.Services.AddScoped<IProcessesProxy, ProcessesProxy>();
+
+            builder.Services.AddSingleton<IProcessesProxy, ProcessesProxy>();
+            builder.Services.AddSingleton<ISingletonProcessesWebSocketService, SingletonProcessesWebSocketService>();
+            builder.Services.AddSingleton<ISingletonProcessesStorage, SingletonProcessesStorage>();
+
+            builder.Services.AddCors(
+                options => options.AddDefaultPolicy(
+                    policy =>
+                    {
+                        policy.AllowAnyHeader().AllowAnyMethod();
+                    }));
 
             var app = builder.Build();
 
@@ -35,6 +45,8 @@ namespace TaskManagerApi
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
+
+            app.UseCors();
 
             app.UseAuthorization();
 
